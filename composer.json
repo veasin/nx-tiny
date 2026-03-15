@@ -17,6 +17,19 @@
   "autoload":{
     "psr-4":{
       "nx\\":"src/"
-    }
+    },
+    "files": [
+      "src/test.php",
+      "src/container.php",
+      "src/filter.php",
+      "src/args.php",
+      "src/input.php",
+      "src/output.php",
+      "src/name.php",
+      "src/method.php",
+      "src/run.php",
+      "src/route.php",
+      "src/db.php"
+    ]
   }
 }
