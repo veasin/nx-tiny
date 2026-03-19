@@ -1,9 +1,6 @@
 <?php
-// test/filter.php
 include "../vendor/autoload.php";
-
-use function nx\filter;
-use function nx\test;
+use function nx\{test, filter};
 
 // 测试 int 类型转换
 test('int 转换', filter('123', 'int'), 123);

@@ -1,10 +1,6 @@
 <?php
-// test/input.php
 include "../vendor/autoload.php";
-
-use function \nx\input;
-use function \nx\container;
-use function \nx\test;
+use function nx\{test, container, input};
 
 // 模拟 GET 请求
 $_GET = ['id' => '123', 'name' => 'test'];

@@ -1,10 +1,6 @@
 <?php
-// test/output.php
 include "../vendor/autoload.php";
-
-use function nx\container;
-use function nx\output;
-use function nx\test;
+use function nx\{test, container, output};
 
 // 模拟容器配置
 //container('nx:output:formats', [

@@ -1,73 +1,57 @@
 <?php
 include "../vendor/autoload.php";
 
-use function nx\run;
-use function nx\test;
+use function nx\{run, test};
 
-// ==================== 定义测试中间件 ====================
-function a($next) { echo "A("; $next(); echo ")A"; }
-function b($next) { echo "B("; $next(); echo ")B"; }
-function c($next) { echo "C"; }
-function d($next) { echo "D("; $next(); echo ")D"; }
-function e($next) { echo "E("; $next(); echo ")E"; }
-function x($next) { echo "X"; }
-function multi_next($next): void { echo "M("; $next(); $next(); echo ")M"; }
-function deep1($next) { echo "1("; $next(); echo ")1"; }
-function deep2($next) { echo "2("; $next(); echo ")2"; }
-function deep3($next) { echo "3("; $next(); echo ")3"; }
+// 定义测试中间件
+$wrapper = fn($next, ...$args) => '(' . $next(...$args) . ')';
+$fn1 = fn($next, ...$args) => '1';
+$fn2 = fn($next, ...$args) => '2';
+$fn3 = fn($next, ...$args) => '3';
+$fn4 = fn($next, ...$args) => '4';
+$noReturn = function($next, ...$args) {};
 
-// ==================== 创建临时文件中间件 ====================
+// 创建临时文件中间件
 $file1 = __DIR__ . '/test_mw1.php';
-file_put_contents($file1, '<?php echo "f1("; $next(); echo ")f1";');
-
 $file2 = __DIR__ . '/test_mw2.php';
-file_put_contents($file2, '<?php echo "f2";');
+file_put_contents($file1, '<?php return "f1(" . $next() . ")f1";');
+file_put_contents($file2, '<?php return "f2";');
 
 // ==================== 测试用例 ====================
+test('空列表', run(), null);
+test('单个函数有返回', run($fn1), '1');
+test('单个函数无返回', run($noReturn), null);
 
-test("测试1: 标准洋葱模型",
-	run_and_capture([a(...), b(...), x(...)]),
-	"A(B(X)B)A");
+test('纯链式 fn1->fn2->fn3', run($fn1, $fn2, $fn3), '3');
+test('纯链式 fn1->fn2->fn3 带返回值混合', run($fn1, $fn2, $noReturn), null);
+test('纯链式 fn1->fn2->fn3 无返回', run($noReturn, $noReturn, $fn3), '3');
 
-test("测试2: 中间件未调用 \$next",
-	run_and_capture([c(...), d(...)]),
-	"CD()D");
+test('三层嵌套 fn1{fn2{fn3}}', run($wrapper, $wrapper, $fn3), '((3))');
+test('两层嵌套 fn1{fn2}->fn3', run($wrapper, $fn2, $fn3), '3');
+test('fn1->fn2{fn3}', run($fn1, $wrapper, $fn3), '(3)');
+test('fn1{fn2{fn3}}->fn4', run($wrapper, $wrapper, $fn3, $fn4), '4');
 
-test("测试3: 混合调用与未调用",
-	run_and_capture([a(...), c(...), d(...)]),
-	"A(CD()D)A");
+test('混合嵌套和链式', run($wrapper, $fn1, $wrapper, $fn2, $fn3), '3');
 
-test("测试4: 文件中间件",
-	run_and_capture([$file1, e(...)]),
-	"f1(E()E)f1");
+test('带初始值', run(5,
+	fn($next, $v) => $next($v * 2),
+	fn($next, $v) => $v + 1
+), 11);
 
-test("测试5: 文件中间件未调用 \$next",
-	run_and_capture([$file2, a(...)]),
-	"f2A()A");
+test('多个非函数参数', run(1, 2, 3,
+	fn($next, $v) => $v * 2
+), 6);
 
-test("测试6: 单个中间件",
-	run_and_capture([a(...)]),
-	"A()A");
+test('多参数传递', run(
+	fn($next) => $next(1, 2, 3),
+	fn($next, $a, $b, $c) => $next($a + $b + $c),
+	fn($next, $sum) => $sum * 2
+), 12);
 
-test("测试7: 空列表",
-	run_and_capture([]),
-	"");
+test('文件中间件嵌套', run($file1, $wrapper, $fn3), 'f1((3))f1');
+test('文件中间件链式', run($file2, $fn1, $fn2), '2');  // file2 返回 'f2' 但被忽略，最终 fn2 返回 '2'
+test('文件中间件无返回', run($file2, $noReturn), null);
 
-test("测试8: 多次调用 \$next",
-	run_and_capture([multi_next(...), x(...)]),
-	"M(X)M");
-
-test("测试9: 深层嵌套",
-	run_and_capture([deep1(...), deep2(...), deep3(...)]),
-	"1(2(3()3)2)1");
-
-// ==================== 清理临时文件 ====================
+// 清理临时文件
 unlink($file1);
 unlink($file2);
-
-// 辅助函数：执行中间件并捕获输出
-function run_and_capture(array $fns): string {
-	ob_start();
-	run(...$fns);
-	return ob_get_clean();
-}

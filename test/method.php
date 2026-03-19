@@ -1,9 +1,6 @@
 <?php
 include "../vendor/autoload.php";
-
-use function nx\container;
-use function nx\method;
-use function nx\test;
+use function nx\{test, container, method};
 
 // 测试无参调用返回当前方法
 test('无参调用返回当前方法', method(), 'cli');

@@ -1,19 +1,35 @@
 <?php
 namespace nx;
-function run(callable|string ...$fns): void{
-	$resolve = fn($fn) => is_string($fn) && is_file($fn) ? function($next) use ($fn){
-		extract(['next' => $next], EXTR_SKIP);
-		require $fn;
-	} : $fn;
-	$next = function(int $i) use (&$next, $fns, $resolve){
-		if($i >= count($fns)) return;
-		$called = false;
-		$resolve($fns[$i])(function() use ($i, &$next, &$called){
-			if($called) return;
-			$called = true;
-			$next($i + 1);
-		});
-		if(!$called) $next($i + 1);
+/**
+ * 执行中间件列表，支持洋葱模型和链式调用。
+ * 参数可以是：
+ * - 闭包：签名 function($next, ...$args)，调用 $next(...) 会执行下一个中间件。
+ * - 文件路径：文件内可通过 $next 变量调用下一个中间件，并通过 return 返回值。
+ * - 其他值：自动转换为 function($next, ...$args) { return $next($value, ...$args); }。
+ * 执行规则：
+ * - 函数通过调用 $next 实现嵌套包裹；不调用 $next 则执行完后自动继续链式调用下一个（如果有），
+ *   并将当前返回值作为参数传递给下一个。
+ * - 返回值取自最后一个执行的函数（即最终结果），若无显式 return 则返回 null。
+ * @param mixed ...$fns 中间件列表
+ * @return mixed 最终结果
+ */
+function run(mixed ...$fns): mixed{
+	if(!$fns) return null;
+	static $resolve = fn($fn) => match (true) {
+		is_string($fn) && is_file($fn) => function($next, ...$args) use ($fn){
+			extract(['next' => $next, 'args' => $args], EXTR_SKIP);
+			return require $fn;
+		},
+		is_callable($fn) => $fn,
+		default => fn($next, ...$args) => $next($fn, ...$args),
 	};
-	$next(0);
+	$queue = array_map($resolve, $fns);
+	$execute = null;
+	$execute = function(array $args, bool $inNested) use (&$execute, &$queue): mixed{
+		$current = array_shift($queue);
+		$result = $current(fn(...$nextArgs) => $execute($nextArgs, true), ...$args);
+		if($inNested) return $result;
+		return empty($queue) ? $result : $execute([$result], false);
+	};
+	return $execute([], false);
 }

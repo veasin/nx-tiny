@@ -1,6 +1,5 @@
 <?php
 include "../vendor/autoload.php";
-
 use function nx\test;
 
 // 简单比较 - 通过

@@ -26,7 +26,7 @@ function input(array|string $name, array|string|null ...$rules): mixed{
 	foreach($rules as $rule){
 		if(is_string($rule)){
 			foreach(array_map('trim', explode(',', $rule)) as $part){
-				if(in_array($part, ['body', 'query', 'header', 'uri', 'params', 'post', 'cookie', 'file'])) $source = $part;
+				if(in_array($part, ['body', 'query', 'header', 'uri', 'params', 'cookie', 'file'])) $source = $part;
 				else $validators[] = $part;
 			}
 		}
@@ -61,15 +61,15 @@ function input(array|string $name, array|string|null ...$rules): mixed{
 			})(),
 			'application/json' => json_decode($raw, true),
 			//'text/html', 'text/plain' => $raw,
-			default => $raw,
+			default => [],
 		};
+		$body['RAW'] = $raw;
 		container("nx:input:body", $body);
 		return $body;
 	};
 	// 获取原始值
 	$from = match ($source) {
 		'query' => $_GET,
-		'post' => $_POST,
 		'cookie' => $_COOKIE,
 		'file' => $_FILES,
 		'params' => container("nx:input:cli") ?? $getCliParams(),

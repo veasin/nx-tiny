@@ -1,10 +1,6 @@
 <?php
-// test/name.php
 include "../vendor/autoload.php";
-
-use function \nx\container;
-use function \nx\name;
-use function \nx\test;
+use function \nx\{test, container, name};
 
 // 设置配置
 container('name', [

@@ -49,7 +49,7 @@ function output(mixed $data = null, int|string|null $formatOrStatusCode = 200, a
 					header(($_SERVER["SERVER_PROTOCOL"] ?? "HTTP/1.1") . $message);//HTTP/1.1
 					header_remove('X-Powered-By');
 					$headers = $response['headers'] ?? [];
-					$headers['V'] = '2005-' . date('Y');
+					$headers['NX'] = 'V 2005-' . date('Y');
 					$is_list = array_is_list($headers);
 					foreach($headers as $header => $value){
 						if($is_list){

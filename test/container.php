@@ -1,9 +1,6 @@
 <?php
-// test/container.php
 include "../vendor/autoload.php";
-
-use function \nx\container;
-use function \nx\test;
+use function nx\{test, container};
 
 // 测试 1: 基本设置和获取
 container('test.key', 'value');

@@ -1,10 +1,6 @@
 <?php
 include "../vendor/autoload.php";
-
-use function nx\route;
-use function nx\test;
-use function nx\container;
-use function nx\input;
+use function nx\{test, container, input, route};
 
 // 基础路由匹配测试
 test('基础GET路由匹配', function() {

@@ -1,8 +1,6 @@
 <?php
 include "../vendor/autoload.php";
-
-use function nx\args;
-use function nx\test;
+use function nx\{test, args};
 
 //echo "========== args 函数测试开始 ==========\n\n";
 

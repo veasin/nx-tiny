@@ -1,6 +1,5 @@
 <?php
 include "../vendor/autoload.php";
-
 use function nx\{container, db, test};
 
 // ========== 基础功能测试 ==========
