@@ -1,7 +1,7 @@
 <?php
 namespace nx;
 /**
- * 执行中间件列表，支持洋葱模型和链式调用。
+ * 执行中间件列表，同时支持洋葱模型和链式调用。
  * 参数可以是：
  * - 闭包：签名 function($next, ...$args)，调用 $next(...) 会执行下一个中间件。
  * - 文件路径：文件内可通过 $next 变量调用下一个中间件，并通过 return 返回值。
@@ -14,7 +14,7 @@ namespace nx;
  * @return mixed 最终结果
  */
 function run(mixed ...$fns): mixed{
-	if(!$fns) return null;
+	if(empty($fns)) return null;
 	static $resolve = fn($fn) => match (true) {
 		is_string($fn) && is_file($fn) => function($next, ...$args) use ($fn){
 			extract(['next' => $next, 'args' => $args], EXTR_SKIP);

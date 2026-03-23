@@ -2,7 +2,7 @@
   "name":"veasin/nx-tiny",
   "description":"A minimalist, functional PHP framework. Focus on declarative config, tail-call optimization, and clear domain modeling.",
   "type":"library",
-  "license": "LGPL-3.0-or-later",
+  "license":"LGPL-3.0-or-later",
   "authors":[
     {
       "name":"V",
@@ -18,7 +18,7 @@
     "psr-4":{
       "nx\\":"src/"
     },
-    "files": [
+    "files":[
       "src/test.php",
       "src/container.php",
       "src/filter.php",
@@ -28,8 +28,10 @@
       "src/name.php",
       "src/method.php",
       "src/run.php",
+      "src/middleware.php",
       "src/route.php",
-      "src/db.php"
+      "src/db.php",
+      "src/cache.php"
     ]
   }
 }
