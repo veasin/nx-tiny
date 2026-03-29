@@ -2,15 +2,16 @@
 namespace nx;
 /**
  * 数据库操作函数
- * @param string                              $sql        SQL语句
+ * @param \nx\helpers\sql|string              $sql        SQL语句
  * @param array|string|int|callable|bool|null $params     参数数组 或 mode（当省略params时）
  * @param string|int|callable|bool|null       $mode       操作模式 或 configName（当params为数组时）
  * @param string|null                         $configName 配置名称
  * @return mixed
  */
-function db(string $sql, array|string|int|callable|bool|null $params = [], string|int|callable|bool|null $mode = null, ?string $configName = null): mixed{
+function db(object|string $sql, array|string|int|callable|bool|null $params = [], string|int|callable|bool|null $mode = null, ?string $configName = null): mixed{
 	static $connections = [];
 	if(!is_array($params)) [$configName, $mode, $params] = [$mode, $params, []];
+	if(is_object($sql) && (get_class($sql) === 'nx\helpers\sql' || is_a($sql, 'nx\helpers\sql', true))) [$sql, $params] = [(string)$sql, $sql->params];
 	$configName = $configName ?? 'default';
 	if(!isset($connections[$configName])){
 		$config = container("db.{$configName}") ?? null;
