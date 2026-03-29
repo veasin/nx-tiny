@@ -1,34 +1,62 @@
 <?php
 namespace nx;
 /**
- * 路由注册函数
+ * 路由匹配，支持 CLI 和 Web 两种模式。
+ * 路由格式: method:/path，支持 :param 和 {param} 参数，* 通配符
+ * - 行尾 /* 匹配剩余所有路径段
+ * - 中间 * 匹配单个路径段
+ * 依次遍历每条路由，按配置顺序收集所有匹配的 handler 执行。
  * @param string|array $match  匹配规则或路由映射数组
  * @param callable     ...$fns 路由处理函数列表
- * @return void
+ * @return mixed
  */
-function route(string|array $match, callable ...$fns): void{
-	if(is_array($match)){
-		foreach($match as $m => $fn) route($m, is_array($fn) ? $fn[0] : $fn);
-		return;
-	}
-	if(empty($fns)) return;
-	[$method, $uri] = explode(':', $match, 2) + ['', ''];
-	$matched = $method === '*' || method($method);
-	if(!$matched) return;
-	if($method === 'cli'){
-		$args = args(container('nx:route:argv') ?? ($_SERVER['argv'] ? array_slice($_SERVER['argv'], 1) : []));
-		$cliArgs = args(substr($match, 4));
-		if(array_any($cliArgs, fn($value, $key) => !isset($args[$key]) || ($args[$key] !== $value && $args[$key] !== true))) return;
-	}
-	else{
-		$uri = trim($uri);
-		if(!empty($uri)){
-			$uriPattern = preg_replace_callback('/[:{]([a-zA-Z0-9_]+)[}]/', fn($m) => '(?P<' . $m[1] . '>[^/]+)', $uri);
-			if(preg_match('#^' . $uriPattern . '$#', container('nx:route:uri') ?? ($_SERVER['REQUEST_URI'] ?? '/'), $matches)){
-				container('nx:input:uri', array_filter($matches, fn($k) => !is_numeric($k), ARRAY_FILTER_USE_KEY));
+function route(string|array $match, callable ...$fns): mixed{
+	$handlers = [];
+	$params = [];
+	$currentMethod = method();
+	$isCli = $currentMethod === 'cli';
+	$cliArgs = $isCli ? args(container('nx:route:argv') ?? array_slice($_SERVER['argv'] ?? [], 1)) : null;
+	$reqSegments = $isCli ? [] : explode('/', parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/');
+	foreach(is_array($match) ? $match : [$match => $fns] as $m => $fn){
+		[$method, $uri] = explode(':', $m, 2) + ['', ''];
+		if($method === 'cli'){
+			$routeArgs = args(substr($m, 4));
+			$matched = true;
+			foreach($routeArgs as $k => $v){
+				if(!isset($cliArgs[$k]) || ($v !== '*' && $v !== true && $cliArgs[$k] !== $v)){
+					$matched = false;
+					break;
+				}
 			}
-			else return;
+			if($matched) $handlers = [...$handlers, ...is_array($fn) ? $fn : [$fn]];
+			continue;
+		}
+		if($method !== '*' && $method !== '' && $method !== $currentMethod) continue;
+		$routeSegments = explode('/', trim($uri));
+		$isWildcard = end($routeSegments) === '*';
+		$reqIndex = 0;
+		$param = [];
+		foreach($routeSegments as $route){
+			if($route === '*'){
+				if($isWildcard) $reqIndex = count($reqSegments);
+				continue;
+			}
+			$p = $route[0] ?? '';
+			$req = $reqSegments[$reqIndex] ?? null;
+			if($req === null) break;
+			if($p === ':' || ($p === '{' && ($route[-1] ?? '') === '}')){
+				$param[trim($route, ':{}')] = $req;
+				$reqIndex++;
+				continue;
+			}
+			if($route !== $req) continue;
+			$reqIndex++;
+		}
+		if($reqIndex === count($reqSegments)){
+			$params = [...$params, ...$param];
+			$handlers = [...$handlers, ...is_array($fn) ? $fn : [$fn]];
 		}
 	}
-	run(...$fns);
+	container('nx:input:uri', $params);
+	return $handlers ? run(...$handlers) : null;
 }

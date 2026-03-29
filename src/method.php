@@ -7,5 +7,5 @@ namespace nx;
  */
 function method(?string $method = null): string|bool{
 	$current = strtolower(container('nx:method') ?? (PHP_SAPI === 'cli' ? 'cli' : $_SERVER['REQUEST_METHOD'] ?? 'get'));
-	return func_num_args() === 0 ? $current : $method === $current;
+	return func_num_args() === 0 ? $current : strtolower($method) === $current;
 }

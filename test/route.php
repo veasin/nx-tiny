@@ -1,33 +1,31 @@
 <?php
-include "../vendor/autoload.php";
+include __DIR__ . "/../vendor/autoload.php";
 use function nx\{test, container, input, route};
 
-// 基础路由匹配测试
-test('基础GET路由匹配', function() {
+test('参数路由匹配', function() {
 	container('nx:method', 'GET');
 	$_SERVER['REQUEST_URI'] = '/user/123';
-	$called = false;
-	route('get:/user/{id}', function() use (&$called) {
-		$called = input('id', 'uri');
+	$id = null;
+	route('get:/user/{id}', function() use (&$id) {
+		$id = input('id', 'uri');
 	});
-	return $called;
+	return $id;
 }, '123');
 
-// 数组批量注册测试
-test('数组批量路由注册', function() {
+test('方法筛选与参数提取', function() {
 	container('nx:method', 'POST');
 	$_SERVER['REQUEST_URI'] = '/post/abc';
 	$result = '';
 	route([
 		'get:/' => fn() => $result = 'get',
-		'post:/post/{id}' => [function()use(&$result){
-		 $result = 'post:' . input('id', 'uri');
-	}]]);
+		'post:/post/{id}' => [function() use (&$result) {
+			$result = 'post:' . input('id', 'uri');
+		}]
+	]);
 	return $result;
 }, 'post:abc');
 
-// CLI参数匹配测试
-test('CLI路由参数匹配', function() {
+test('CLI参数匹配', function() {
 	container('nx:method', 'CLI');
 	$_SERVER['argv'] = ['script.php', '--id=123', '--name=test'];
 	$called = false;
@@ -37,8 +35,7 @@ test('CLI路由参数匹配', function() {
 	return $called;
 }, true);
 
-// 通配符方法测试
-test('通配符*方法匹配', function() {
+test('通配符方法匹配', function() {
 	container('nx:method', 'PUT');
 	$_SERVER['REQUEST_URI'] = '/any/route';
 	$called = false;
@@ -48,16 +45,14 @@ test('通配符*方法匹配', function() {
 	return $called;
 }, true);
 
-// URI参数注入测试
-test('URI参数注入到容器', function() {
+test('多参数注入容器', function() {
 	container('nx:method', 'GET');
 	$_SERVER['REQUEST_URI'] = '/user/456/post/789';
 	route('get:/user/{uid}/post/{pid}', function() {});
 	return container('nx:input:uri');
-}, ['uid'=>'456', 'pid'=>'789']);
+}, ['uid' => '456', 'pid' => '789']);
 
-// 不匹配路由测试
-test('路由不匹配应跳过', function() {
+test('不匹配路由跳过', function() {
 	container('nx:method', 'GET');
 	$_SERVER['REQUEST_URI'] = '/wrong/path';
 	$called = false;
@@ -67,8 +62,7 @@ test('路由不匹配应跳过', function() {
 	return $called === false;
 }, true);
 
-// CLI无参数匹配测试
-test('CLI无参数路由', function() {
+test('CLI无参数匹配', function() {
 	container('nx:method', 'CLI');
 	$_SERVER['argv'] = ['script.php', 'command'];
 	$called = false;
@@ -77,3 +71,50 @@ test('CLI无参数路由', function() {
 	});
 	return $called;
 }, true);
+
+test('多路由顺序 - /a/123 匹配参数和通配符', function() {
+	container('nx:method', 'GET');
+	$_SERVER['REQUEST_URI'] = '/a/123';
+	$log = [];
+	route([
+		'get:/a/:id' => function() use (&$log) { $log[] = 'fn1'; },
+		'get:/a/*' => function() use (&$log) { $log[] = 'fn2'; },
+	]);
+	return $log;
+}, ['fn1', 'fn2']);
+
+test('多路由顺序 - /a/123 匹配通配符和参数', function() {
+	container('nx:method', 'GET');
+	$_SERVER['REQUEST_URI'] = '/a/123';
+	$log = [];
+	route([
+		'get:/a/b/c' => function() use (&$log) { $log[] = 'fn1'; },
+		'get:/a/*' => function() use (&$log) { $log[] = 'fn2'; },
+		'get:/a/:id' => function() use (&$log) { $log[] = 'fn3'; },
+	]);
+	return $log;
+}, ['fn2', 'fn3']);
+
+test('多路由顺序 - /a/b/c 仅通配符匹配', function() {
+	container('nx:method', 'GET');
+	$_SERVER['REQUEST_URI'] = '/a/b/c';
+	$log = [];
+	route([
+		'get:/a/b' => function() use (&$log) { $log[] = 'fn1'; },
+		'get:/a/*' => function() use (&$log) { $log[] = 'fn2'; },
+		'get:/a/:id' => function() use (&$log) { $log[] = 'fn3'; },
+	]);
+	return $log;
+}, ['fn2']);
+
+test('多路由顺序 - /a/b/c 精确匹配和通配符', function() {
+	container('nx:method', 'GET');
+	$_SERVER['REQUEST_URI'] = '/a/b/c';
+	$log = [];
+	route([
+		'get:/a/b/c' => function() use (&$log) { $log[] = 'fn1'; },
+		'get:/a/*' => function() use (&$log) { $log[] = 'fn2'; },
+		'get:/a/:id' => function() use (&$log) { $log[] = 'fn3'; },
+	]);
+	return $log;
+}, ['fn1', 'fn2']);
