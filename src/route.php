@@ -12,9 +12,9 @@ namespace nx;
  */
 function route(string|array $match, callable ...$fns): mixed{
 	$handlers = [];
-	$currentMethod = input('method', 'input');
-	$params = input('params', 'input') ?? [];
-	$reqSegments = $currentMethod === 'cli' ? [] : array_values(array_filter(explode('/', parse_url(input('uri', 'input'), PHP_URL_PATH) ?: '/')));
+	$currentMethod = from('method', 'input');
+	$params = from('params', 'input') ?? [];
+	$reqSegments = $currentMethod === 'cli' ? [] : array_values(array_filter(explode('/', parse_url(from('uri', 'input'), PHP_URL_PATH) ?: '/')));
 	foreach(is_array($match) ? $match : [$match => $fns] as $m => $fn){
 		[$method, $uri] = explode(':', $m, 2) + ['', ''];
 		if($method === 'cli'){
@@ -55,6 +55,6 @@ function route(string|array $match, callable ...$fns): mixed{
 			$handlers = [...$handlers, ...is_array($fn) ? $fn : [$fn]];
 		}
 	}
-	container('nx:input:params', $params);
+	container('nx:from:params', $params);
 	return $handlers ? run(...$handlers) : null;
 }

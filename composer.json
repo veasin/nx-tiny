@@ -26,6 +26,7 @@
       "src/container.php",
       "src/filter.php",
       "src/args.php",
+      "src/from.php",
       "src/input.php",
       "src/output.php",
       "src/name.php",

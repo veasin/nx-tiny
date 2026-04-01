@@ -95,41 +95,41 @@ container('nx:method', 'put');
 
 > 缓存键：`nx:method`
 
-#### input - 输入数据获取
+#### from - 从指定来源获取原始值，支持来源：query|cookie|file|params|header|input|body
 
 ```php
-// 获取查询参数
-$id = input('id', 'query');
+// 从 Body 获取原始值
+$id = from('id', 'body');
 
-// 获取 Body 参数（JSON）
-$name = input('name', 'body');
+// 从 Query 获取原始值
+$name = from('name', 'query');
 
-// 获取 URL 参数（路由参数）
-$slug = input('slug', 'params');
+// 从 Header 获取原始值
+$token = from('authorization', 'header');
 
-// 获取请求头
-$token = input('authorization', 'header');
+// 直接使用数组作为来源
+$data = from('id', ['id' => 123, 'name' => 'test']);
 
-// 获取 CLI 参数
-$cmd = input('cmd', 'params');
-
-// 获取并验证（多个规则）
-$age = input('age', 'int', '>=18', '<=100');
-
-// 组合规则
-$age = input('age', 'int,>=18,<=100');
+// 获取整个来源
+$body = from(null, 'body');
 
 // 批量获取
-$data = input(['id' => 'int,>0', 'name' => 'str']);
+$result = from(['id', 'name'], 'query');  // ['id' => null, 'name' => 'test']
 
 // 预置输入数据（通过容器缓存）
-container('nx:input:input', ['method' => 'get', 'uri' => '/test', 'params' => []]);
-container('nx:input:params', ['id' => 123]);  // 预置路由参数
-container('nx:input:body', ['name' => 'test']);  // 预置请求体
-container('nx:input:headers', ['Authorization' => 'Bearer xxx']);  // 预置请求头
+container('nx:from:input', ['method' => 'get', 'uri' => '/test', 'params' => []]);
+container('nx:from:params', ['id' => 123]);  // 预置路由参数
+container('nx:from:body', ['name' => 'test']);  // 预置请求体
+container('nx:from:headers', ['Authorization' => 'Bearer xxx']);  // 预置请求头
+
+// 扩展 content-type 解析器
+container('nx:from:content', [
+    'application/xml' => fn($raw) => simplexml_load_string($raw),
+    'default' => fn($raw) => ['raw' => $raw],
+]);
 ```
 
-> 缓存键：`nx:input:input`、`nx:input:params`、`nx:input:body`、`nx:input:headers`、`nx:input:raw`
+> 缓存键：`nx:from:input`、`nx:from:params`、`nx:from:body`、`nx:from:headers`、`nx:from:raw`、`nx:from:content`
 
 #### filter - 数据验证与转换
 
@@ -160,6 +160,19 @@ filter('13800138000', 'phone');  // 返回 '13800138000'
 ```
 
 > 扩展方式：`container('nx:filter', [...])`
+
+#### input - 输入数据获取（获取from+验证filter）
+
+```php
+// 获取并验证（多个规则）
+$age = input('age', 'query', 'int', '>=18', '<=100');
+
+// 组合规则
+$age = input('age', 'body,int,>=18,<=100');
+
+// 批量获取
+$data = input(['id' => 'int,>0', 'name' => 'str']);
+```
 
 #### output - 输出数据
 
