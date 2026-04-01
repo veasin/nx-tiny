@@ -34,7 +34,8 @@
       "src/middleware.php",
       "src/route.php",
       "src/db.php",
-      "src/cache.php"
+      "src/cache.php",
+      "src/log.php"
     ]
   }
 }

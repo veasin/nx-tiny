@@ -449,4 +449,38 @@ $key = name('user', ['uid' => 123], 'cache');  // 返回 'cache:user:123'
 ```
 
 > 配置方式：`container('name', [...])`
+
+#### log - 日志函数
+
+```php
+// 基础用法（默认 level 为 info）
+log('用户登录');
+
+// 指定 level
+log('发生错误', 'error');
+
+// context 为字符串时作为 level
+log('警告信息', 'warning');
+
+// 使用 context 替换占位符 {key}
+log('用户 {name} 登录', ['name' => 'admin']);
+
+// 同时使用 context 和 level
+log('错误: {msg}', ['msg' => '连接失败'], 'error');
+
+// 非 string 消息自动 json
+log(['a' => 1, 'b' => 2]);
+
+// 支持 Stringable 对象
+log(new StringableClass());
+
+// 注入 PSR Logger
+container('nx:log', $psrLogger);
+
+// 注入闭包（fn 不会被容器自动执行）
+container('nx:log.fn', fn($level, $message, $context) => ...);
+```
+
+> PSR Logger 方式：`container('nx:log', $logger)`  
+> 闭包方式：`container('nx:log.fn', fn(...) => ...)`
 ```
