@@ -5,11 +5,11 @@ namespace nx;
  * * input('name', 'body','int','>0'):mixed
  * * input('name', 'body,int,>0'):mixed
  * * input(['name'=>$set], $globalSet):null|array
- * @param array|string      $name
+ * @param array|string|null $name
  * @param array|string|null $rules
  * @return mixed
  */
-function input(array|string $name, array|string|null ...$rules): mixed{
+function input(array|string|null $name, array|string|null ...$rules): mixed{
 	// 如果第一个参数是数组，则处理多个输入
 	if(is_array($name)){
 		$result = [];
@@ -26,15 +26,28 @@ function input(array|string $name, array|string|null ...$rules): mixed{
 	foreach($rules as $rule){
 		if(is_string($rule)){
 			foreach(array_map('trim', explode(',', $rule)) as $part){
-				if(in_array($part, ['body', 'query', 'header', 'uri', 'params', 'cookie', 'file'])) $source = $part;
+				if(in_array($part, ['body', 'query', 'header', 'input', 'params', 'cookie', 'file'])) $source = $part;
 				else $validators[] = $part;
 			}
 		}
 		elseif(is_array($rule)) $validators = array_merge($validators, $rule);
 	}
-	static $getCliParams = function(){
-		$result = args(array_slice($_SERVER['argv'], 1)) ?? [];
-		container("nx:input:cli", $result);
+	static $getInput = function(){
+		$result = PHP_SAPI === 'cli'
+			? [
+				'method' => 'cli',
+				'protocol' => null,
+				'uri' => implode(' ', $_SERVER['argv']),
+				'params' => args(array_slice($_SERVER['argv'], 1)) ?? [],
+			]
+			: [
+				'method' => strtolower($_SERVER['REQUEST_METHOD'] ?? 'get'),
+				'protocol' => $_SERVER["SERVER_PROTOCOL"] ?? 'HTTP/1.1',
+				'uri' => $_SERVER['REQUEST_URI'] ?? '/',
+				'params' => null,
+			];
+		container("nx:input:params", $result['params']);
+		container("nx:input:input", $result);
 		return $result;
 	};
 	static $getHeaders = function(){
@@ -52,7 +65,7 @@ function input(array|string $name, array|string|null ...$rules): mixed{
 		if(!$content_type) return [];
 		$content_type = strtolower(trim(explode(';', $content_type)[0]));
 		// todo: custom content-type parser
-		$raw = container("nx:input:input") ?? file_get_contents('php://input');
+		$raw = container("nx:input:raw") ?? file_get_contents('php://input');
 		$body = match ($content_type) {
 			'multipart/form-data' => $_POST,
 			'application/x-www-form-urlencoded' => (function() use ($raw){
@@ -72,12 +85,12 @@ function input(array|string $name, array|string|null ...$rules): mixed{
 		'query' => $_GET,
 		'cookie' => $_COOKIE,
 		'file' => $_FILES,
-		'params' => container("nx:input:cli") ?? $getCliParams(),
+		'params' => container("nx:input:params") ?? input('params', 'input') ?? [],
 		'header' => container("nx:input:headers") ?? $getHeaders(),
-		'uri' => container("nx:input:uri") ?? [],
+		'input' => container("nx:input:input") ?? $getInput(),
 		'body' => container("nx:input:body") ?? $getBody(),
 		default => [],
 	};
-	$value = $from[$name] ?? null;
+	$value = $name !== null ? ($from[$name] ?? null) : $from;
 	return empty($validators) ? $value : filter($value, ...$validators);
 }

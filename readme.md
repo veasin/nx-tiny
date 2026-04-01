@@ -32,6 +32,9 @@ composer require veasin/nx-tiny
 // 获取所有配置
 $all = container();
 
+// 清空配置
+container(null);
+
 // 检查键是否存在（支持 . 分隔）
 $exists = container(null, 'database.host');  // 返回 bool
 
@@ -42,7 +45,13 @@ $host = container('database.host');
 container('database.host', 'localhost');
 container('app.debug', true);
 
-// 批量设置
+// 删除键（设置 null）
+container('database.host', null);
+
+// 批量读取（list 数组）
+$values = container(['database.host', 'app.debug']);  // 返回对应的值数组
+
+// 批量设置（map 数组）
 container([
     'database.host' => '127.0.0.1',
     'database.port' => 3306,
@@ -58,15 +67,15 @@ $version = container('version');  // 访问时自动执行
 ```php
 // 字符串输入
 $args = args('-v --file=test.php input.txt');
-// 结果: ['v' => true, 'file' => 'test.php', 0 => 'input.txt']
+// 结果: ['v' => true, 'file' => 'test.php', 'input.txt']
 
 // 数组输入
 $args = args(['-abc', '--verbose', '--name=John', 'data.txt']);
-// 结果: ['a' => true, 'b' => true, 'c' => true, 'verbose' => true, 'name' => 'John', 0 => 'data.txt']
+// 结果: ['a' => true, 'b' => true, 'c' => true, 'verbose' => true, 'name' => 'John', 'data.txt']
 
 // 带引号的值
-$args = args('--message="Hello World"');
-// 结果: ['message' => 'Hello World']
+$args = args('--message="Hello World" --path=\'/usr/local\'');
+// 结果: ['message' => 'Hello World', 'path' => '/usr/local']
 ```
 
 #### method - HTTP方法获取/检查
@@ -79,19 +88,24 @@ $method = method();  // 返回: 'get', 'post', 'cli' 等
 if (method('POST')) {
     // 处理 POST 请求
 }
+
+// 预置请求方法（通过容器）
+container('nx:method', 'put');
 ```
+
+> 缓存键：`nx:method`
 
 #### input - 输入数据获取
 
 ```php
 // 获取查询参数
-$id = input('id', 'int', '>0');
+$id = input('id', 'query');
 
 // 获取 Body 参数（JSON）
 $name = input('name', 'body');
 
-// 获取 URL 参数
-$slug = input('slug', 'uri');
+// 获取 URL 参数（路由参数）
+$slug = input('slug', 'params');
 
 // 获取请求头
 $token = input('authorization', 'header');
@@ -102,9 +116,20 @@ $cmd = input('cmd', 'params');
 // 获取并验证（多个规则）
 $age = input('age', 'int', '>=18', '<=100');
 
+// 组合规则
+$age = input('age', 'int,>=18,<=100');
+
 // 批量获取
-$data = input(['id' => 'int,>0', 'name' => 'str', 'email' => 'email']);
+$data = input(['id' => 'int,>0', 'name' => 'str']);
+
+// 预置输入数据（通过容器缓存）
+container('nx:input:input', ['method' => 'get', 'uri' => '/test', 'params' => []]);
+container('nx:input:params', ['id' => 123]);  // 预置路由参数
+container('nx:input:body', ['name' => 'test']);  // 预置请求体
+container('nx:input:headers', ['Authorization' => 'Bearer xxx']);  // 预置请求头
 ```
+
+> 缓存键：`nx:input:input`、`nx:input:params`、`nx:input:body`、`nx:input:headers`、`nx:input:raw`
 
 #### filter - 数据验证与转换
 
@@ -119,11 +144,22 @@ filter('hello@example.com', 'email');  // 返回邮箱字符串
 filter('150', 'int', '>100', '<200');  // 返回 150
 filter('on', 'bool');                  // 返回 true
 
+// 逗号分隔的组合规则
+filter('150', 'int,>100,<200');  // 返回 150
+
 // 自定义验证
 filter('abc', fn($v) => strlen($v) > 2);  // 返回 'abc'
 filter(10, 'int', '>5');                  // 返回 10
 filter(3, 'int', '>5');                   // 返回 null (验证失败)
+
+// 扩展规则（通过容器配置 nx:filter）
+container('nx:filter', [
+    'phone' => [null, null, [fn($v) => preg_match('/^1\d{10}$/', $v)]],
+]);
+filter('13800138000', 'phone');  // 返回 '13800138000'
 ```
+
+> 扩展方式：`container('nx:filter', [...])`
 
 #### output - 输出数据
 
@@ -140,19 +176,37 @@ output(['view' => 'template.php'], 'view');
 
 // 带响应头
 output(['token' => $token], 200, ['Authorization' => 'Bearer xxx']);
+
+// 扩展输出格式（通过容器配置 nx:output:formats）
+container('nx:output:formats', [
+    'xml' => function($response, $formats) {
+        $response['headers']['Content-Type'] = 'application/xml';
+        $response['body'] = xml_encode($response['body']);
+        $formats['http']($response, $formats);
+    },
+]);
+output($data, 'xml');
+
+// 自定义渲染回调
+container('nx:output:callback', function($response) {
+    echo json_encode($response['body']);
+});
 ```
+
+> 扩展方式：`container('nx:output:formats', [...])`  
+> 回调方式：`container('nx:output:callback', fn($response) => ...)`
 
 #### route - 路由匹配
 
 ```php
 // 基础路由
-route('GET:/users', function() {
+route('GET:/users', function($next) {
     output(['users' => []]);
 });
 
-// 带参数
+// 带参数 (:param 或 {param})
 route('GET:/user/:id', function() {
-    $id = input('id', 'uri');
+    $id = input('id', 'params');
     output(['id' => $id]);
 });
 
@@ -162,8 +216,16 @@ route('POST:/api/user', function() {
     output(['created' => $name]);
 });
 
-// 多路由同一处理
-route(['GET:/api/list', 'POST:/api/create'], $handler);
+// 路由映射数组
+route([
+    'get:/api/list' => function() { return 'list'; },
+    'post:/api/create' => function() { return 'create'; },
+]);
+
+// 通配符路由
+route('GET:/api/*', function() {
+    // 匹配 /api 下的所有路径
+});
 
 // CLI 路由
 route('cli:verbose', function() { /* ... */ });
@@ -220,16 +282,33 @@ $result = cache('APCu', function() {
     return db('SELECT * FROM users');
 });
 
-// 带 TTL
-$result = cache(['fn' => 'Redis', 'ttl' => 3600], function() {
+// Redis 缓存
+$result = cache('Redis', function() {
     return expensiveOperation();
 });
 
-// 组合缓存
+// 带 TTL
+$result = cache(['fn' => 'Redis', 'ttl' => 3600], function() {
+    return $data;
+});
+
+// 组合缓存（按顺序尝试）
 $result = cache('APCu', 'Redis', function() {
     return $data;
 });
+
+// 配置方式（通过容器 cache）
+container('cache', [
+    'user_list' => ['APCu', 1800],  // APCu, TTL 30分钟
+    'api_data' => ['Redis', 3600, 'prefix_'],  // Redis, TTL 1小时, 自定义前缀
+]);
+$result = cache('user_list', function() {
+    return db('SELECT * FROM users', [], 'list');
+});
 ```
+
+> 配置方式：`container('cache', [...])`  
+> Redis 配置：`container('config.redis', ['host' => '127.0.0.1', 'port' => 6379, 'password' => '', 'database' => 0])`
 
 #### db - 数据库操作
 
@@ -243,6 +322,15 @@ $users = db('SELECT * FROM users', [], 'list');
 // 查询单个值
 $count = db('SELECT COUNT(*) FROM users', [], 'value');
 
+// 查询单列（返回数组）
+$names = db('SELECT name FROM users', [], 'column');
+
+// 查询键值对
+$pairs = db('SELECT id, name FROM users', [], 'pairs');
+
+// 查询分组结果
+$grouped = db('SELECT status, COUNT(*) FROM users GROUP BY status', [], 'group');
+
 // 插入并获取ID
 $id = db('INSERT INTO users (name) VALUES (?)', ['John'], 'id');
 
@@ -251,9 +339,15 @@ $count = db('UPDATE users SET name = ? WHERE id = ?', ['Jane', 1], 'count');
 
 // 批量插入
 db('INSERT INTO users (name) VALUES (?), (?)', [['John'], ['Jane']], 'ok');
+
+// 执行模式（返回 PDOStatement）
+$stmt = db('SELECT * FROM users', [], true);
+
+// 自定义处理
+$result = db('SELECT * FROM users', [], fn($stmt, $pdo) => $stmt->fetchAll());
 ```
 
-**事务支持**（需要4个参数）：
+**事务支持**：
 
 ```php
 // 开启事务
@@ -265,12 +359,28 @@ db('COMMIT');
 // 回滚事务
 db('ROLLBACK');
 
-// 保存点（支持嵌套）
+// 保存点
 db('SAVEPOINT sp1');
 
 // 回滚到保存点
 db('ROLLBACK TO SAVEPOINT sp1');
 ```
+
+**配置数据库连接**：
+
+```php
+container('db.default', [
+    'dsn' => 'mysql:host=localhost;dbname=test',
+    'username' => 'root',
+    'password' => '',
+    'options' => [],
+]);
+
+// 使用命名配置
+$user = db('SELECT * FROM users WHERE id = ?', [1], 'row', 'default');
+```
+
+> 配置方式：`container('db.{name}', [...])`
 
 配合 [nx-sql](https://github.com/veasin/nx-sql) 使用：
 
@@ -309,6 +419,9 @@ test('范围判断', 10, fn($v) => $v > 5);
 test('数组验证', ['a' => 1], function($value) {
     return isset($value['a']) && $value['a'] === 1;
 });
+
+// 函数作为待测值
+test('函数返回值测试', fn() => 2+2, 4);
 ```
 
 #### name - 命名配置管理
@@ -320,4 +433,7 @@ $key = name('user.id');  // 返回 'user.id'
 // 命名空间
 container('name', ['cache' => ['user' => 'cache:user:{uid}']]);
 $key = name('user', ['uid' => 123], 'cache');  // 返回 'cache:user:123'
+```
+
+> 配置方式：`container('name', [...])`
 ```

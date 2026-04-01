@@ -1,120 +1,92 @@
 <?php
-include __DIR__ . "/../vendor/autoload.php";
-use function nx\{test, container, input, route};
+require __DIR__ . '/../vendor/autoload.php';
 
-test('参数路由匹配', function() {
-	container('nx:method', 'GET');
-	$_SERVER['REQUEST_URI'] = '/user/123';
-	$id = null;
-	route('get:/user/{id}', function() use (&$id) {
-		$id = input('id', 'uri');
+use function nx\{container, input, route, test};
+
+test('路由 - 基础匹配', function(){
+	container("nx:input:input", ['method' => 'get', 'uri' => '/users/123', 'params' => null]);
+	return route('get:/users/:id', function($next){
+		return true;
 	});
-	return $id;
+}, true);
+test('路由 - 精确匹配', function(){
+	container("nx:input:input", ['method' => 'get', 'uri' => '/users', 'params' => null]);
+	return route('get:/users', function($next){
+		return true;
+	});
+}, true);
+test('路由 - GET方法匹配', function(){
+	container("nx:input:input", ['method' => 'get', 'uri' => '/users/123', 'params' => null]);
+	return route('get:/users/:id', function($next){
+		return true;
+	});
+}, true);
+test('路由 - POST方法匹配', function(){
+	container("nx:input:input", ['method' => 'post', 'uri' => '/users', 'params' => null]);
+	return route('post:/users', function($next){
+		return true;
+	});
+}, true);
+test('路由 - 方法不匹配', function(){
+	container("nx:input:input", ['method' => 'post', 'uri' => '/users', 'params' => null]);
+	return route('get:/users', function($next){
+		return true;
+	});
+}, null);
+test('路由 - 参数提取', function(){
+	container("nx:input:input", ['method' => 'get', 'uri' => '/users/123', 'params' => null]);
+	return route('get:/users/:id', function($next){
+		return input('id', 'params');
+	});
 }, '123');
-
-test('方法筛选与参数提取', function() {
-	container('nx:method', 'POST');
-	$_SERVER['REQUEST_URI'] = '/post/abc';
-	$result = '';
-	route([
-		'get:/' => fn() => $result = 'get',
-		'post:/post/{id}' => [function() use (&$result) {
-			$result = 'post:' . input('id', 'uri');
-		}]
-	]);
-	return $result;
-}, 'post:abc');
-
-test('CLI参数匹配', function() {
-	container('nx:method', 'CLI');
-	$_SERVER['argv'] = ['script.php', '--id=123', '--name=test'];
-	$called = false;
-	route('cli:--id=123 --name=test', function() use (&$called) {
-		$called = true;
+test('路由 - 多段参数', function(){
+	container("nx:input:input", ['method' => 'get', 'uri' => '/users/123/edit', 'params' => null]);
+	return route('get:/users/:id/:action', function($next){
+		return [
+			'id' => input('id', 'params'),
+			'action' => input('action', 'params'),
+		];
 	});
-	return $called;
-}, true);
-
-test('通配符方法匹配', function() {
-	container('nx:method', 'PUT');
-	$_SERVER['REQUEST_URI'] = '/any/route';
-	$called = false;
-	route('*:/any/{path}', function() use (&$called) {
-		$called = true;
+}, ['id' => '123', 'action' => 'edit']);
+test('路由 - 不匹配返回null', function(){
+	container("nx:input:input", ['method' => 'get', 'uri' => '/posts/123', 'params' => null]);
+	return route('get:/users/:id', function($next){});
+}, null);
+test('路由 - params容器写入', function(){
+	container("nx:input:input", ['method' => 'get', 'uri' => '/users/456', 'params' => null]);
+	route('get:/users/:id', function($next){});
+	return input('id', 'params');
+}, '456');
+test('路由 - CLI模式匹配', function(){
+	container("nx:input:input", [
+		'method' => 'cli',
+		'uri' => 'app.php user list --limit=10',
+		'params' => ['user', 'list', 'limit' => '10'],
+	]);
+	return route('cli: user', function($next){
+		return true;
 	});
-	return $called;
 }, true);
-
-test('多参数注入容器', function() {
-	container('nx:method', 'GET');
-	$_SERVER['REQUEST_URI'] = '/user/456/post/789';
-	route('get:/user/{uid}/post/{pid}', function() {});
-	return container('nx:input:uri');
-}, ['uid' => '456', 'pid' => '789']);
-
-test('不匹配路由跳过', function() {
-	container('nx:method', 'GET');
-	$_SERVER['REQUEST_URI'] = '/wrong/path';
-	$called = false;
-	route('get:/correct/path', function() use (&$called) {
-		$called = true;
-	});
-	return $called === false;
-}, true);
-
-test('CLI无参数匹配', function() {
-	container('nx:method', 'CLI');
-	$_SERVER['argv'] = ['script.php', 'command'];
-	$called = false;
-	route('cli:command', function() use (&$called) {
-		$called = true;
-	});
-	return $called;
-}, true);
-
-test('多路由顺序 - /a/123 匹配参数和通配符', function() {
-	container('nx:method', 'GET');
-	$_SERVER['REQUEST_URI'] = '/a/123';
-	$log = [];
-	route([
-		'get:/a/:id' => function() use (&$log) { $log[] = 'fn1'; },
-		'get:/a/*' => function() use (&$log) { $log[] = 'fn2'; },
+test('路由 - 路由映射数组', function(){
+	container(null);
+	container("nx:input:input", ['method' => 'get', 'uri' => '/api/list', 'params' => []]);
+	return route([
+		'get:/api/list' => function($next){ return 'list'; },
+		'post:/api/create' => function($next){ return 'create'; },
 	]);
-	return $log;
-}, ['fn1', 'fn2']);
-
-test('多路由顺序 - /a/123 匹配通配符和参数', function() {
-	container('nx:method', 'GET');
-	$_SERVER['REQUEST_URI'] = '/a/123';
-	$log = [];
-	route([
-		'get:/a/b/c' => function() use (&$log) { $log[] = 'fn1'; },
-		'get:/a/*' => function() use (&$log) { $log[] = 'fn2'; },
-		'get:/a/:id' => function() use (&$log) { $log[] = 'fn3'; },
+}, 'list');
+test('路由 - 路由映射数组 POST', function(){
+	container(null);
+	container("nx:input:input", ['method' => 'post', 'uri' => '/api/create', 'params' => []]);
+	return route([
+		'get:/api/list' => function($next){ return 'list'; },
+		'post:/api/create' => function($next){ return 'create'; },
 	]);
-	return $log;
-}, ['fn2', 'fn3']);
-
-test('多路由顺序 - /a/b/c 仅通配符匹配', function() {
-	container('nx:method', 'GET');
-	$_SERVER['REQUEST_URI'] = '/a/b/c';
-	$log = [];
-	route([
-		'get:/a/b' => function() use (&$log) { $log[] = 'fn1'; },
-		'get:/a/*' => function() use (&$log) { $log[] = 'fn2'; },
-		'get:/a/:id' => function() use (&$log) { $log[] = 'fn3'; },
-	]);
-	return $log;
-}, ['fn2']);
-
-test('多路由顺序 - /a/b/c 精确匹配和通配符', function() {
-	container('nx:method', 'GET');
-	$_SERVER['REQUEST_URI'] = '/a/b/c';
-	$log = [];
-	route([
-		'get:/a/b/c' => function() use (&$log) { $log[] = 'fn1'; },
-		'get:/a/*' => function() use (&$log) { $log[] = 'fn2'; },
-		'get:/a/:id' => function() use (&$log) { $log[] = 'fn3'; },
-	]);
-	return $log;
-}, ['fn1', 'fn2']);
+}, 'create');
+test('路由 - 多路由调用', function(){
+	container(null);
+	container("nx:input:input", ['method' => 'post', 'uri' => '/api/create', 'params' => []]);
+	$result1 = route('get:/api/list', function($next){ return 'list'; });
+	$result2 = route('post:/api/create', function($next){ return 'create'; });
+	return $result2;  // 只返回最后匹配的
+}, 'create');

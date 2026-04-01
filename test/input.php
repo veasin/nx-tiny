@@ -1,34 +1,28 @@
 <?php
-include "../vendor/autoload.php";
-use function nx\{test, container, input};
+require __DIR__ . '/../vendor/autoload.php';
 
-// 模拟 GET 请求
-$_GET = ['id' => '123', 'name' => 'test'];
-// 模拟 POST 请求
-$_POST = ['email' => 'user@example.com', 'age' => '25'];
-// 模拟 Header 请求
-$_SERVER['HTTP_AUTHORIZATION'] = 'Bearer token123';
-// 模拟 URI 参数
-container('nx:input:uri', 'test-value');
-$_SERVER['REQUEST_URI'] = '/user/test-value';
+use function nx\{container, input, test};
 
-
-// 测试 query 来源
-test('query 来源', input('id', 'query'), '123');
-
-// 测试 post 来源
-test('post 来源', input('email', 'post'), 'user@example.com');
-
-// 测试 header 来源
-test('header 来源', input('authorization', 'header'), 'Bearer token123');
-
-// 测试 body 来源 (JSON)
-container("nx:input:body", ['name' => 'json_user', 'age' => 30]);
-test('body 来源', input('name', 'body'), 'json_user');
-
-// 测试类型转换和验证
-test('类型转换和验证', input('age', 'post', 'int', '>0'), 25);
-
-// 测试多个输入
-test('多个输入', input(['id' => 'query', 'email' => 'post'], []),
-	fn($result) => is_array($result) && isset($result['id']) && isset($result['email']));
+container("nx:input:input", [
+	'method' => 'get',
+	'uri' => '/users/123?name=test',
+	'params' => null,
+]);
+container('nx:input:params', ['id' => '123', 'name' => 'test']);
+$_GET = ['name' => 'test'];
+test('input source - 完整数组', input(null, 'input'), fn($v) => is_array($v) && isset($v['method']) && isset($v['uri']));
+test('input source - method', input('method', 'input'), 'get');
+test('input source - uri', input('uri', 'input'), '/users/123?name=test');
+test('input source - params (web)', input('params', 'input'), null);
+test('params source - 容器有值', input('id', 'params'), '123');
+test('params source - 容器无值', input('name', 'params'), 'test');
+container("nx:input:input", [
+	'method' => 'cli',
+	'uri' => 'cli.php --name=test --id=123',
+	'params' => ['name' => 'test', 'id' => '123'],
+]);
+test('input source - cli mode', input('method', 'input'), 'cli');
+test('input source - cli uri', input('uri', 'input'), 'cli.php --name=test --id=123');
+test('input source - cli params', input('params', 'input'), fn($v) => is_array($v) && isset($v['name']));
+test('query source', input('name', 'query'), 'test');
+test('name=null 返回数组', input(null, 'query'), ['name' => 'test']);

@@ -46,7 +46,7 @@ function output(mixed $data = null, int|string|null $formatOrStatusCode = 200, a
 					$status = $response['code'] ?? (null !== $response['body'] ? 200 : 404);
 					$message = " $status " . ($response['message'] ?? '');
 					if(!headers_sent()){
-					header(($_SERVER["SERVER_PROTOCOL"] ?? "HTTP/1.1") . $message);//HTTP/1.1
+					header((input('protocol', 'input') ?? "HTTP/1.1") . $message);//HTTP/1.1
 					header_remove('X-Powered-By');
 					$headers = $response['headers'] ?? [];
 					$headers['NX'] = 'V 2005-' . date('Y');

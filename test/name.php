@@ -1,18 +1,18 @@
 <?php
-include "../vendor/autoload.php";
-use function \nx\{test, container, name};
+include __DIR__ . "/../vendor/autoload.php";
+
+use function nx\{container, name, test};
 
 // 设置配置
 container('name', [
 	'redis' => [
 		'uid' => 'user:{id}',
-		'session' => 'sess:{token}'
+		'session' => 'sess:{token}',
 	],
 	'db' => [
-		'users' => 'tbl_users'
-	]
+		'users' => 'tbl_users',
+	],
 ]);
-
 // 测试用例
 test('基本key获取', fn() => name('uid', ['id' => 123], 'redis'), 'user:123');
 test('模板替换', fn() => name('session', ['token' => 'abc123'], 'redis'), 'sess:abc123');

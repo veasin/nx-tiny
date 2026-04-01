@@ -29,7 +29,6 @@
       "src/input.php",
       "src/output.php",
       "src/name.php",
-      "src/method.php",
       "src/run.php",
       "src/middleware.php",
       "src/route.php",
