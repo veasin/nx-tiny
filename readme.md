@@ -253,6 +253,25 @@ $count = db('UPDATE users SET name = ? WHERE id = ?', ['Jane', 1], 'count');
 db('INSERT INTO users (name) VALUES (?), (?)', [['John'], ['Jane']], 'ok');
 ```
 
+**事务支持**（需要4个参数）：
+
+```php
+// 开启事务
+db('BEGIN');
+
+// 提交事务
+db('COMMIT');
+
+// 回滚事务
+db('ROLLBACK');
+
+// 保存点（支持嵌套）
+db('SAVEPOINT sp1');
+
+// 回滚到保存点
+db('ROLLBACK TO SAVEPOINT sp1');
+```
+
 配合 [nx-sql](https://github.com/veasin/nx-sql) 使用：
 
 ```php

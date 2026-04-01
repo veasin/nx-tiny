@@ -129,3 +129,61 @@ test('智能参数-完整四个参数', function() {
 	$user = db('SELECT * FROM users WHERE id = ?', [$id], 'row', $configName);
 	return is_array($user) && $user['name'] === 'FullParams';
 }, true);
+
+test('事务-BEGIN返回true', function() {
+	$configName = 'test_' . uniqid();
+	container("db.{$configName}", ['dsn' => 'sqlite::memory:']);
+
+	db('CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)', 'ok', $configName);
+	$result = db('BEGIN', [], null, $configName);
+	return $result === true;
+}, true);
+
+test('事务-commit返回true', function() {
+	$configName = 'test_' . uniqid();
+	container("db.{$configName}", ['dsn' => 'sqlite::memory:']);
+
+	db('CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)', 'ok', $configName);
+	db('BEGIN', [], null, $configName);
+	db("INSERT INTO users (name) VALUES ('TxTest')", 'ok', $configName);
+	$result = db('COMMIT', [], null, $configName);
+	return $result === true;
+}, true);
+
+test('事务-rollback回滚数据', function() {
+	$configName = 'test_' . uniqid();
+	container("db.{$configName}", ['dsn' => 'sqlite::memory:']);
+
+	db('CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)', 'ok', $configName);
+	db('BEGIN', [], null, $configName);
+	db("INSERT INTO users (name) VALUES ('RollbackMe')", 'ok', $configName);
+	db('ROLLBACK', [], null, $configName);
+	$count = db('SELECT COUNT(*) FROM users', 'value', $configName);
+	return $count == 0;
+}, true);
+
+test('事务-savepoint支持嵌套', function() {
+	$configName = 'test_' . uniqid();
+	container("db.{$configName}", ['dsn' => 'sqlite::memory:']);
+
+	db('CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)', 'ok', $configName);
+	db('BEGIN', [], null, $configName);
+	db("INSERT INTO users (name) VALUES ('Outer')", 'ok', $configName);
+	db('SAVEPOINT sp1', [], null, $configName);
+	db("INSERT INTO users (name) VALUES ('Inner')", 'ok', $configName);
+	db('ROLLBACK TO SAVEPOINT sp1', [], null, $configName);
+	db('COMMIT', [], null, $configName);
+	$names = db('SELECT name FROM users', 'column', $configName);
+	return count($names) === 1 && $names[0] === 'Outer';
+}, true);
+
+test('事务-小写sql支持', function() {
+	$configName = 'test_' . uniqid();
+	container("db.{$configName}", ['dsn' => 'sqlite::memory:']);
+
+	db('CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)', 'ok', $configName);
+	db('begin', [], null, $configName);
+	db("INSERT INTO users (name) VALUES ('Lower')", 'ok', $configName);
+	$result = db('commit', [], null, $configName);
+	return $result === true;
+}, true);

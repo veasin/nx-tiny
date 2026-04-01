@@ -18,7 +18,10 @@ function db(object|string $sql, array|string|int|callable|bool|null $params = []
 		if(!is_array($config) || !isset($config['dsn'])) return null;
 		try{
 			$connections[$configName] = new \PDO($config['dsn'], $config['username'] ?? null, $config['password'] ?? null, ($config['options'] ?? []) + [
-					\PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION, \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC, \PDO::ATTR_STRINGIFY_FETCHES => false, \PDO::ATTR_EMULATE_PREPARES => false,
+					\PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
+					\PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC,
+					\PDO::ATTR_STRINGIFY_FETCHES => false,
+					\PDO::ATTR_EMULATE_PREPARES => false,
 				]
 			);
 		}catch(\PDOException $e){
@@ -26,6 +29,11 @@ function db(object|string $sql, array|string|int|callable|bool|null $params = []
 		}
 	}
 	$pdo = $connections[$configName];
+	$sqlUpper = trim(strtoupper($sql));
+	if(in_array($sqlUpper, ['BEGIN', 'START TRANSACTION', 'BEGIN TRANSACTION'])) return $pdo->beginTransaction();
+	if($sqlUpper === 'COMMIT') return $pdo->commit();
+	if($sqlUpper === 'ROLLBACK') return $pdo->rollback();
+	if(str_starts_with($sqlUpper, 'SAVEPOINT ') || str_starts_with($sqlUpper, 'ROLLBACK TO SAVEPOINT ')) return $pdo->exec($sql);
 	try{
 		$stmt = $pdo->prepare($sql);
 		if(!$stmt->execute($params)) return null;
