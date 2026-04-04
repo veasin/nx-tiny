@@ -90,3 +90,12 @@ test('路由 - 多路由调用', function(){
 	$result2 = route('post:/api/create', function($next){ return 'create'; });
 	return $result2;  // 只返回最后匹配的
 }, 'create');
+
+test('路由 - 空路径会错误匹配所有路由', function(){
+	container(null);
+	container("nx:from:input", ['method' => 'get', 'uri' => '/', 'params' => []]);
+	return route([
+		'get:/test' => fn($next) => 'test',
+		'get:/' => fn($next) => 'root',
+	]);
+}, 'root');  // 期望只匹配 'get:/'
