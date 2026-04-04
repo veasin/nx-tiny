@@ -6,6 +6,8 @@ namespace nx;
  * @param string|null|array $name   键名，null 时返回整个来源
  * @param string|array      $source 来源名称或直接使用数组 query|cookie|file|params|header|input|body
  * @return mixed
+ * @see input() 推荐使用此函数获取带验证的输入
+ * @internal请使用 input() 替代，from() 仅返回原始数据无验证
  */
 function from(string|null|array $name, string|array $source = 'body'): mixed{
 	if(is_array($source)){
