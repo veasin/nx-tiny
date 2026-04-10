@@ -12,7 +12,8 @@
   "require":{
     "php":"^8.4",
     "ext-pdo":"*",
-    "ext-json":"*"
+    "ext-json":"*",
+	"ext-fileinfo":"*"
   },
   "require-dev":{
     "veasin/nx-sql":"*"
@@ -28,6 +29,9 @@
       "src/args.php",
       "src/from.php",
       "src/input.php",
+      "src/output/http.php",
+      "src/output/json.php",
+      "src/output/view.php",
       "src/output.php",
       "src/name.php",
       "src/run.php",
@@ -35,7 +39,21 @@
       "src/route.php",
       "src/db.php",
       "src/cache.php",
-      "src/log.php"
+      "src/cache/apcu.php",
+      "src/cache/redis.php",
+      "src/log.php",
+      "src/middleware/prefab/auth/basic.php",
+      "src/middleware/prefab/auth/token.php",
+      "src/middleware/prefab/auth/jwt.php",
+      "src/middleware/prefab/auth/apikey.php",
+      "src/middleware/prefab/cors.php",
+      "src/middleware/prefab/csrf.php",
+      "src/middleware/prefab/error.php",
+      "src/middleware/prefab/gzip.php",
+      "src/middleware/prefab/json.php",
+      "src/middleware/prefab/log.php",
+      "src/middleware/prefab/rate.php",
+      "src/middleware/prefab/serve.php"
     ]
   }
 }
