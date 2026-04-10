@@ -1,0 +1,37 @@
+<?php
+namespace nx\output;
+
+use function nx\{container, from};
+
+/**
+ * @param $response
+ * @return void
+ * @internal
+ */
+function http($response): void{
+	$status = $response['code'] ?? (null !== ($response['body'] ?? null) ? 200 : 404);
+	$message = " $status " . ($response['message'] ?? '');
+	if(!headers_sent()){
+		header((from('protocol', 'input') ?? "HTTP/1.1") . $message);
+		header_remove('X-Powered-By');
+		$headers = $response['headers'] ?? [];
+		$headers['NX'] = 'V 2005-' . date('Y');
+		$is_list = array_is_list($headers);
+		foreach($headers as $header => $value){
+			if($is_list){
+				if(is_array($value)){
+					foreach($value as $v){
+						header($header . ': ' . $v, false);
+					}
+				}
+				elseif(is_string($value) || $value instanceof \Stringable){
+					header($value);
+				}
+			}
+			else header($header . ': ' . $value);
+		}
+	}
+	$callback = container('nx:output:callback') ?? null;
+	if(null !== $callback) $callback($response);
+	else echo $response['body'] ?? '';
+}
