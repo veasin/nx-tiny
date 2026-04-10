@@ -44,8 +44,10 @@ function from(string|null|array $name, string|array $source = 'body'): mixed{
 	};
 	static $getHeaders = function(){
 		$headers = null;
-		if(function_exists('getallheaders')) $headers = getallheaders();
-		else{
+		if(function_exists('getallheaders')) {
+			$_headers = getallheaders();
+			foreach($_headers as $name => $value) $headers[strtolower($name)] = $value;
+		}else{
 			foreach($_SERVER as $n => $v){
 				if(str_starts_with($n, 'HTTP_')) $headers[str_replace(' ', '-', strtolower(str_replace('_', ' ', substr($n, 5))))] = $v;
 			}
