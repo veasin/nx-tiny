@@ -12,9 +12,15 @@ namespace nx;
 function input(array|string|null $name, array|string|null ...$rules): mixed{
 	if(is_array($name)){
 		$result = [];
-		foreach($name as $key => $rule){
-			$rule = is_array($rule) ? $rule : [$rule];
-			$result[$key] = input($key, ...($rules ?? []), ...$rule);
+		if(array_is_list($name)){
+			foreach($name as $key){
+				$result[$key] = input($key, ...($rules ?? []));
+			}
+		} else{
+			foreach($name as $key => $rule){
+				$rule = is_array($rule) ? $rule : [$rule];
+				$result[$key] = input($key, ...($rules ?? []), ...$rule);
+			}
 		}
 		return $result;
 	}
